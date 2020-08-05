@@ -235,7 +235,7 @@ class midtransSettings(Document):
 
 		try:
 			resp = make_get_request("https://api.midtrans.com/v1/payments/{0}"
-				.format(self.data.midtrans_payment_id), auth=(settings.api_key,
+				.format(self.data.midtrans_settings_id), auth=(settings.api_key,
 					settings.api_secret))
 
 			if resp.get("status") == "authorized":
@@ -352,11 +352,11 @@ def capture_payment(is_sandbox=False, sanbox_response=None):
 				data = json.loads(doc.data)
 				settings = controller.get_settings(data)
 
-				resp = make_get_request("https://api.midtrans.com/v1/payments/{0}".format(data.get("midtrans_payment_id")),
+				resp = make_get_request("https://api.midtrans.com/v1/payments/{0}".format(data.get("midtrans_settings_id")),
 					auth=(settings.api_key, settings.api_secret), data={"amount": data.get("amount")})
 
 				if resp.get('status') == "authorized":
-					resp = make_post_request("https://api.midtrans.com/v1/payments/{0}/capture".format(data.get("midtrans_payment_id")),
+					resp = make_post_request("https://api.midtrans.com/v1/payments/{0}/capture".format(data.get("midtrans_settings_id")),
 						auth=(settings.api_key, settings.api_secret), data={"amount": data.get("amount")})
 
 			if resp.get("status") == "captured":
@@ -388,7 +388,7 @@ def get_order(doctype, docname):
 @frappe.whitelist(allow_guest=True)
 def order_payment_success(integration_request, params):
 	"""Called by midtrans.js on order payment success, the params
-	contains midtrans_payment_id, midtrans_order_id, midtrans_signature
+	contains midtrans_settings_id, midtrans_order_id, midtrans_signature
 	that is updated in the data field of integration request
 
 	Args:
