@@ -71,7 +71,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2020-08-05 15:17:27.436889",
+ "modified": "2020-08-05 16:55:32.398702",
  "modified_by": "Administrator",
  "module": "Midtrans Payment",
  "name": "Midtrans Settings",
@@ -84,6 +84,16 @@
    "print": 1,
    "read": 1,
    "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Administrator",
    "share": 1,
    "write": 1
   }
