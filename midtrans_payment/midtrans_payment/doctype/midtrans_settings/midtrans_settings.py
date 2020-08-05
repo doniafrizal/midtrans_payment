@@ -73,7 +73,7 @@ from frappe.integrations.utils import (make_get_request, make_post_request, crea
 	create_payment_gateway)
 
 class midtransSettings(Document):
-	supported_currencies = ["INR"]
+	supported_currencies = ["IDR"]
 
 	def validate(self):
 		create_payment_gateway('midtrans')
@@ -82,10 +82,10 @@ class midtransSettings(Document):
 			self.validate_midtrans_credentails()
 
 	def validate_midtrans_credentails(self):
-		if self.api_key and self.api_secret:
+		if self.client_key and self.server_key:
 			try:
-				make_get_request(url="https://api.midtrans.com/v1/payments",
-					auth=(self.api_key, self.get_password(fieldname="api_secret", raise_exception=False)))
+				make_get_request(url= base_url + "/transactions",
+					auth=(self.client_key, self.get_password(fieldname="server_key", raise_exception=False)))
 			except Exception:
 				frappe.throw(_("Seems API Key or API Secret is wrong !!!"))
 
@@ -115,7 +115,7 @@ class midtransSettings(Document):
 			for addon in kwargs.get("addons"):
 				resp = make_post_request(
 					url,
-					auth=(settings.api_key, settings.api_secret),
+					auth=(settings.client_key, settings.server_key),
 					data=json.dumps(addon),
 					headers={
 						"content-type": "application/json"
@@ -150,7 +150,7 @@ class midtransSettings(Document):
 		try:
 			resp = make_post_request(
 				"https://api.midtrans.com/v1/subscriptions",
-				auth=(settings.api_key, settings.api_secret),
+				auth=(settings.client_key, settings.server_key),
 				data=json.dumps(subscription_details),
 				headers={
 					"content-type": "application/json"
@@ -198,10 +198,10 @@ class midtransSettings(Document):
 			"receipt": kwargs.get('receipt'),
 			"payment_capture": kwargs.get('payment_capture')
 		}
-		if self.api_key and self.api_secret:
+		if self.client_key and self.server_key:
 			try:
 				order = make_post_request("https://api.midtrans.com/v1/orders",
-					auth=(self.api_key, self.get_password(fieldname="api_secret", raise_exception=False)),
+					auth=(self.client_key, self.get_password(fieldname="server_key", raise_exception=False)),
 					data=payment_options)
 				order['integration_request'] = integration_request.name
 				return order # Order returned to be consumed by midtrans.js
@@ -235,8 +235,8 @@ class midtransSettings(Document):
 
 		try:
 			resp = make_get_request("https://api.midtrans.com/v1/payments/{0}"
-				.format(self.data.midtrans_settings_id), auth=(settings.api_key,
-					settings.api_secret))
+				.format(self.data.midtrans_settings_id), auth=(settings.client_key,
+					settings.server_key))
 
 			if resp.get("status") == "authorized":
 				self.integration_request.update_status(data, 'Authorized')
@@ -297,14 +297,16 @@ class midtransSettings(Document):
 
 	def get_settings(self, data):
 		settings = frappe._dict({
-			"api_key": self.api_key,
-			"api_secret": self.get_password(fieldname="api_secret", raise_exception=False)
+			"client_key": self.client_key,
+			"server_key": self.get_password(fieldname="server_key", raise_exception=False),
+			"base_url": self.snap_production_base_url
 		})
 
 		if cint(data.get('notes', {}).get('use_sandbox')) or data.get("use_sandbox"):
 			settings.update({
-				"api_key": frappe.conf.sandbox_api_key,
-				"api_secret": frappe.conf.sandbox_api_secret,
+				"client_key": frappe.conf.sandbox_client_key,
+				"server_key": frappe.conf.sandbox_server_key,
+				"base_url": self.snap_sandbox_base_url,
 			})
 
 		return settings
@@ -313,9 +315,9 @@ class midtransSettings(Document):
 		settings = self.get_settings({})
 
 		try:
-			resp = make_post_request("https://api.midtrans.com/v1/subscriptions/{0}/cancel"
-				.format(subscription_id), auth=(settings.api_key,
-					settings.api_secret))
+			resp = make_post_request(settings.base_url + "/subscriptions/{0}/cancel"
+				.format(subscription_id), auth=(settings.client_key,
+					settings.server_key))
 		except Exception:
 			frappe.log_error(frappe.get_traceback())
 
@@ -352,12 +354,12 @@ def capture_payment(is_sandbox=False, sanbox_response=None):
 				data = json.loads(doc.data)
 				settings = controller.get_settings(data)
 
-				resp = make_get_request("https://api.midtrans.com/v1/payments/{0}".format(data.get("midtrans_settings_id")),
-					auth=(settings.api_key, settings.api_secret), data={"amount": data.get("amount")})
+				resp = make_get_request(settings.base_url +"/transactions/{0}".format(data.get("midtrans_settings_id")),
+					auth=(settings.client_key, settings.server_key), data={"amount": data.get("amount")})
 
 				if resp.get('status') == "authorized":
-					resp = make_post_request("https://api.midtrans.com/v1/payments/{0}/capture".format(data.get("midtrans_settings_id")),
-						auth=(settings.api_key, settings.api_secret), data={"amount": data.get("amount")})
+					resp = make_post_request(settings.base_url +"/transactions/{0}/capture".format(data.get("midtrans_settings_id")),
+						auth=(settings.client_key, settings.server_key), data={"amount": data.get("amount")})
 
 			if resp.get("status") == "captured":
 				frappe.db.set_value("Integration Request", doc.name, "status", "Completed")
@@ -370,9 +372,9 @@ def capture_payment(is_sandbox=False, sanbox_response=None):
 
 
 @frappe.whitelist(allow_guest=True)
-def get_api_key():
+def get_client_key():
 	controller = frappe.get_doc("midtrans Settings")
-	return controller.api_key
+	return controller.client_key
 
 @frappe.whitelist(allow_guest=True)
 def get_order(doctype, docname):
@@ -450,7 +452,7 @@ def midtrans_subscription_callback():
 		}).insert(ignore_permissions=True)
 		frappe.db.commit()
 
-		frappe.enqueue(method='frappe.integrations.doctype.midtrans_settings.midtrans_settings.handle_subscription_notification',
+		frappe.enqueue(method='midtrans_payment.doctype.midtrans_settings.midtrans_settings.handle_subscription_notification',
 			queue='long', timeout=600, is_async=True, **{"doctype": "Integration Request", "docname":  doc.name})
 
 	except frappe.InvalidStatusError:
@@ -471,8 +473,8 @@ def validate_payment_callback(data):
 
 	settings = controller.get_settings(data)
 
-	resp = make_get_request("https://api.midtrans.com/v1/subscriptions/{0}".format(subscription_id),
-		auth=(settings.api_key, settings.api_secret))
+	resp = make_get_request(settings.base_url +"/subscriptions/{0}".format(subscription_id),
+		auth=(settings.client_key, settings.server_key))
 
 	if resp.get("status") != "active":
 		_throw()
