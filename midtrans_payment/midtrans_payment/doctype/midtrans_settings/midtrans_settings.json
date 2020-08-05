@@ -9,7 +9,13 @@
   "merchant_id",
   "merchant_name",
   "client_key",
-  "server_key"
+  "server_key",
+  "snap_production_base_url",
+  "section_break_6",
+  "use_sandbox",
+  "sandbox_client_key",
+  "sanbox_server_key",
+  "snap_sandbox_base_url"
  ],
  "fields": [
   {
@@ -31,11 +37,41 @@
    "fieldname": "server_key",
    "fieldtype": "Data",
    "label": "Server Key"
+  },
+  {
+   "fieldname": "snap_production_base_url",
+   "fieldtype": "Data",
+   "label": "SNAP_PRODUCTION_BASE_URL"
+  },
+  {
+   "fieldname": "section_break_6",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "use_sandbox",
+   "fieldtype": "Check",
+   "label": "Use Sandbox"
+  },
+  {
+   "fieldname": "sandbox_client_key",
+   "fieldtype": "Data",
+   "label": "Sandbox Client Key"
+  },
+  {
+   "fieldname": "sanbox_server_key",
+   "fieldtype": "Data",
+   "label": "Sanbox Server Key"
+  },
+  {
+   "fieldname": "snap_sandbox_base_url",
+   "fieldtype": "Data",
+   "label": "SNAP_SANDBOX_BASE_URL"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2020-08-05 08:30:00.807166",
+ "modified": "2020-08-05 15:17:27.436889",
  "modified_by": "Administrator",
  "module": "Midtrans Payment",
  "name": "Midtrans Settings",
