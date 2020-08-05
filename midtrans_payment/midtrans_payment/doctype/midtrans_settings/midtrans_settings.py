@@ -82,12 +82,19 @@ class midtransSettings(Document):
 			self.validate_midtrans_credentails()
 
 	def validate_midtrans_credentails(self):
-		if self.client_key and self.server_key:
-			try:
-				make_get_request(url= base_url + "/transactions",
-					auth=(self.client_key, self.get_password(fieldname="server_key", raise_exception=False)))
-			except Exception:
-				frappe.throw(_("Seems API Key or API Secret is wrong !!!"))
+
+		controller = frappe.get_doc("midtrans Settings")
+		for doc in frappe.get_all("Integration Request", filters={"status": "Authorized", "integration_request_service": "midtrans"}, fields=["name", "data"]):
+			data = json.loads(doc.data)
+			settings = controller.get_settings(data)
+
+			if self.client_key and self.server_key:
+				try:
+					make_get_request(url=settings.base_url + "/transactions",
+						auth=(self.client_key, self.get_password(fieldname="server_key", raise_exception=False)))
+				except Exception:
+					frappe.throw(_("Seems API Key or API Secret is wrong !!!"))
+
 
 	def validate_transaction_currency(self, currency):
 		if currency not in self.supported_currencies:
@@ -198,16 +205,21 @@ class midtransSettings(Document):
 			"receipt": kwargs.get('receipt'),
 			"payment_capture": kwargs.get('payment_capture')
 		}
-		if self.client_key and self.server_key:
-			try:
-				order = make_post_request("https://api.midtrans.com/v1/orders",
-					auth=(self.client_key, self.get_password(fieldname="server_key", raise_exception=False)),
-					data=payment_options)
-				order['integration_request'] = integration_request.name
-				return order # Order returned to be consumed by midtrans.js
-			except Exception:
-				frappe.log(frappe.get_traceback())
-				frappe.throw(_("Could not create midtrans order"))
+		controller = frappe.get_doc("midtrans Settings")
+		for doc in frappe.get_all("Integration Request", filters={"status": "Authorized", "integration_request_service": "midtrans"}, fields=["name", "data"]):
+			data = json.loads(doc.data)
+			settings = controller.get_settings(data)
+
+			if self.client_key and self.server_key:
+				try:
+					order = make_post_request(settings.base_url + "/transactions",
+						auth=(self.client_key, self.get_password(fieldname="server_key", raise_exception=False)),
+						data=payment_options)
+					order['integration_request'] = integration_request.name
+					return order # Order returned to be consumed by midtrans.js
+				except Exception:
+					frappe.log(frappe.get_traceback())
+					frappe.throw(_("Could not create midtrans order"))
 
 	def create_request(self, data):
 		self.data = frappe._dict(data)
@@ -234,7 +246,7 @@ class midtransSettings(Document):
 		settings = self.get_settings(data)
 
 		try:
-			resp = make_get_request("https://api.midtrans.com/v1/payments/{0}"
+			resp = make_get_request(settings.base_url + "/payments/{0}"
 				.format(self.data.midtrans_settings_id), auth=(settings.client_key,
 					settings.server_key))
 
